@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MeshPay | Offline payment lab</title>
+    <link rel="stylesheet" href="/dashboard.css">
+    <script src="/dashboard.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+    <a class="wordmark" href="/" aria-label="MeshPay home"><span class="brand-mark">M</span> meshpay<span class="wordmark-dot">.</span></a>
+    <div class="topbar-meta"><span class="live-dot"></span><span>LOCAL SIMULATION</span><span class="topbar-divider"></span><span>NO INTERNET REQUIRED</span></div>
+</header>
+<main>
+    <section class="intro-row">
+        <div>
+            <p class="eyebrow">OFFLINE PAYMENT PROTOCOL / LAB 01</p>
+            <h1>Value moves<br><em>without a signal.</em></h1>
+        </div>
+        <p class="intro-copy">Create an authenticated payment on one phone, pass its sealed packet through nearby devices, then let the bridge settle it when it reaches the backend.</p>
+    </section>
+
+    <section class="control-layout" aria-label="Payment mesh simulator">
+        <section class="payment-panel">
+            <div class="section-heading"><div><p class="eyebrow">01 / CREATE</p><h2>New payment</h2></div><span class="step-index">01</span></div>
+            <form id="payment-form">
+                <label for="sender">Sender phone</label>
+                <select id="sender" name="sender" required></select>
+                <label for="receiver">Receiver phone</label>
+                <select id="receiver" name="receiver" required></select>
+                <div class="amount-field"><label for="amount">Amount</label><div class="amount-input"><span>₹</span><input id="amount" name="amount" type="number" min="0.01" step="0.01" value="500.00" required></div></div>
+                <label for="pin">Sender PIN</label>
+                <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="off" minlength="4" maxlength="8" placeholder="4-digit demo PIN" required>
+                <p class="field-note">Demo accounts use PIN 1234. The PIN is inside the encrypted packet.</p>
+                <button class="button button-primary" type="submit"><span>Inject payment</span><span aria-hidden="true">↗</span></button>
+            </form>
+            <div id="notice" class="notice" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="mesh-panel">
+            <div class="section-heading"><div><p class="eyebrow">02 / PROPAGATE</p><h2>Phone mesh</h2></div><div class="round-counter"><span id="round-count">0</span><small>ROUNDS</small></div></div>
+            <div class="mesh-caption"><span><span class="legend-dot legend-nearby"></span>nearby connection</span><span><span class="legend-dot legend-packet"></span>packet received</span></div>
+            <div id="mesh-track" class="mesh-track" aria-label="Phone mesh topology"></div>
+            <div class="mesh-actions"><button id="gossip-button" class="button button-secondary" type="button">Run gossip round <span aria-hidden="true">↻</span></button><button id="reset-button" class="button button-quiet" type="button" title="Clear packets from the simulated mesh">Reset mesh</button></div>
+            <div class="packet-area"><div class="subheading"><h3>Packets in transit</h3><span id="packet-count">0</span></div><div id="packet-list" class="packet-list"><p class="empty-state">No packets yet. Create one to begin.</p></div></div>
+        </section>
+
+        <aside class="accounts-panel">
+            <div class="section-heading"><div><p class="eyebrow">03 / SETTLE</p><h2>Accounts</h2></div><span class="currency-tag">H2 · LOCAL</span></div>
+            <div id="account-list" class="account-list"></div>
+            <div class="bridge-note"><span class="bridge-glyph">↥</span><p><strong>Bridge phone</strong><br>Uploads packets that have reached the edge of this mesh.</p></div>
+        </aside>
+    </section>
+
+    <section class="ledger-section">
+        <div class="section-heading ledger-heading"><div><p class="eyebrow">04 / RECORD</p><h2>Settlement ledger</h2></div><span class="ledger-count"><span id="ledger-count">0</span> RECORDS</span></div>
+        <div class="table-wrap"><table><thead><tr><th>TRANSACTION</th><th>SENDER</th><th>RECEIVER</th><th>AMOUNT</th><th>TIME</th><th>STATUS</th></tr></thead><tbody id="ledger-body"><tr><td class="empty-cell" colspan="6">No settled transactions yet.</td></tr></tbody></table></div>
+    </section>
+</main>
+<footer><span>MESHPAY / PROTOCOL SIMULATOR</span><span>PACKETS ARE AUTHENTICATED · SETTLEMENT IS ATOMIC</span></footer>
+</body>
+</html>
