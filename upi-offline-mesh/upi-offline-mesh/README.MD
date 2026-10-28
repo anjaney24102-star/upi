@@ -11,7 +11,7 @@ Use Java 25 and build once when Gradle dependencies are available:
 .\gradlew.bat bootRun
 ```
 
-Open [http://localhost:8080](http://localhost:8080). The demo seeds accounts A, B, and C with balances of ₹5,000, ₹3,000, and ₹2,000. Their demo PIN is `1234`.
+Open [http://localhost:8081](http://localhost:8081). If 8081 is in use on your machine, start the app with `SERVER_PORT=8082` (or another free port). The demo seeds accounts A, B, and C with balances of ₹5,000, ₹3,000, and ₹2,000. Their demo PIN is `1234`.
 
 ### Walk through a payment
 

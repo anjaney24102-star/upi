@@ -3,6 +3,7 @@ package com.demo.upi_offline_mesh.service;
 import com.demo.upi_offline_mesh.model.PaymentPacket;
 import com.demo.upi_offline_mesh.model.PaymentReceipt;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,8 +40,10 @@ public class MeshService {
         if (packets.containsKey(packet.transactionId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Transaction is already in this mesh");
         }
+        TrackedPacket trackedPacket = new TrackedPacket(packet, sender, receiver, amount);
         inboxes.get(sender).put(packet.transactionId(), packet);
-        packets.put(packet.transactionId(), new TrackedPacket(packet, sender, receiver, amount));
+        packets.put(packet.transactionId(), trackedPacket);
+        trackedPacket.record("CREATED", "Payment sealed at " + sender + " and injected into the mesh", sender);
         addEvent(sender + " injected " + packet.transactionId() + " for " + receiver + " into the mesh");
         return state();
     }
@@ -60,6 +63,13 @@ public class MeshService {
         gossipRounds++;
         for (Transfer transfer : transfers) {
             inboxes.get(transfer.receiver()).put(transfer.transactionId(), transfer.packet());
+            TrackedPacket trackedPacket = packets.get(transfer.transactionId());
+            if (trackedPacket != null) {
+                trackedPacket.record("RELAYED", "Copied from " + transfer.sender() + " to " + transfer.receiver() + " at gossip round " + gossipRounds, transfer.receiver());
+                if ("BRIDGE".equals(transfer.receiver())) {
+                    trackedPacket.record("REACHED BRIDGE", "Packet arrived at the bridge and is ready for backend upload", "BRIDGE");
+                }
+            }
             addEvent("Round " + gossipRounds + ": " + transfer.sender() + " shared "
                     + transfer.transactionId() + " with " + transfer.receiver());
         }
@@ -79,6 +89,7 @@ public class MeshService {
         }
         PaymentReceipt receipt = paymentService.receivePayment(tracked.packet());
         tracked.markUploaded(receipt.status());
+        tracked.record("UPLOADED", "Bridge uploaded the packet to the backend and received a " + receipt.status() + " receipt", "BRIDGE");
         addEvent("Bridge uploaded " + transactionId + "; backend status " + receipt.status());
         return receipt;
     }
@@ -89,7 +100,11 @@ public class MeshService {
                         List.copyOf(entry.getValue().keySet())))
                 .toList();
         List<MeshPacket> packetViews = packets.values().stream().map(TrackedPacket::view).toList();
-        return new MeshState(nodes, packetViews, List.copyOf(events), gossipRounds);
+        List<TransactionTimeline> transactionTimelines = packets.values().stream()
+                .sorted((left, right) -> right.lastTimestamp().compareTo(left.lastTimestamp()))
+                .map(TrackedPacket::timelineView)
+                .toList();
+        return new MeshState(nodes, packetViews, List.copyOf(events), gossipRounds, transactionTimelines);
     }
 
     public synchronized MeshState reset() {
@@ -110,16 +125,21 @@ public class MeshService {
 
     private record Transfer(String sender, String receiver, String transactionId, PaymentPacket packet) {}
 
-    public record MeshState(List<MeshNode> nodes, List<MeshPacket> packets, List<String> events, int gossipRounds) {}
+    public record MeshState(List<MeshNode> nodes, List<MeshPacket> packets, List<String> events, int gossipRounds,
+                            List<TransactionTimeline> transactionTimeline) {}
     public record MeshNode(String id, String label, boolean bridge, List<String> transactionIds) {}
     public record MeshPacket(String transactionId, String sender, String receiver, BigDecimal amount,
                              boolean uploaded, String status) {}
+    public record TransactionTimeline(String transactionId, String sender, String receiver, BigDecimal amount,
+                                     String status, List<TimelineEvent> events) {}
+    public record TimelineEvent(String stage, String node, String detail, Instant timestamp) {}
 
     private static final class TrackedPacket {
         private final PaymentPacket packet;
         private final String sender;
         private final String receiver;
         private final BigDecimal amount;
+        private final List<TimelineEvent> events = new ArrayList<>();
         private boolean uploaded;
         private String status = "IN MESH";
 
@@ -139,8 +159,23 @@ public class MeshService {
             this.status = status;
         }
 
+        private void record(String stage, String detail, String node) {
+            events.add(new TimelineEvent(stage, node, detail, Instant.now()));
+        }
+
+        private Instant lastTimestamp() {
+            if (events.isEmpty()) {
+                return Instant.EPOCH;
+            }
+            return events.get(events.size() - 1).timestamp();
+        }
+
         private MeshPacket view() {
             return new MeshPacket(packet.transactionId(), sender, receiver, amount, uploaded, status);
+        }
+
+        private TransactionTimeline timelineView() {
+            return new TransactionTimeline(packet.transactionId(), sender, receiver, amount, status, List.copyOf(events));
         }
     }
 }

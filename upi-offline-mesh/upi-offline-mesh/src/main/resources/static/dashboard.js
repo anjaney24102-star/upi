@@ -23,6 +23,8 @@ const elements = {
     accounts: document.querySelector('#account-list'),
     ledger: document.querySelector('#ledger-body'),
     ledgerCount: document.querySelector('#ledger-count'),
+    timeline: document.querySelector('#timeline-list'),
+    timelineCount: document.querySelector('#timeline-count'),
     gossip: document.querySelector('#gossip-button')
 };
 
@@ -104,11 +106,46 @@ function renderLedger(transactions) {
         <td><span class="status-pill">${transaction.status}</span></td></tr>`).join('');
 }
 
+function renderTimeline(timelines) {
+    elements.timelineCount.textContent = timelines.length;
+    if (timelines.length === 0) {
+        elements.timeline.innerHTML = '<div class="empty-state timeline-empty">No payment timeline yet. Inject a packet to begin tracing its path.</div>';
+        return;
+    }
+
+    elements.timeline.innerHTML = timelines.map(timeline => `
+        <article class="timeline-item">
+            <header class="timeline-header">
+                <div>
+                    <div class="timeline-transaction">${timeline.transactionId}</div>
+                    <div class="timeline-route">${timeline.sender} → ${timeline.receiver}</div>
+                </div>
+                <span class="timeline-status">${timeline.status}</span>
+            </header>
+            <div class="timeline-events">
+                ${timeline.events.map(event => `
+                    <div class="timeline-event">
+                        <span class="timeline-badge">${event.stage}</span>
+                        <div class="timeline-body">
+                            <div class="timeline-meta">
+                                <strong>${event.node}</strong>
+                                <time>${new Date(event.timestamp).toLocaleString([], { hour: 'numeric', minute: '2-digit', month: 'short', day: 'numeric' })}</time>
+                            </div>
+                            <p>${event.detail}</p>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </article>
+    `).join('');
+}
+
 async function refresh() {
     const state = await request('/api/demo/state');
     renderAccounts(state.accounts);
     renderMesh(state.mesh);
     renderLedger(state.transactions);
+    renderTimeline(state.mesh.transactionTimeline);
 }
 
 async function uploadPacket(transactionId, button) {
